@@ -14,9 +14,9 @@
 #SBATCH --nodes=1
 
 ####### Output #######
-#SBATCH --output=/home/users/0019/uk097201/out/broken.out.%j
-#SBATCH --error=/home/users/0019/uk097201/out/broken.err.%j
+#SBATCH --output=/home/users/0019/uk097201/PV/Shared-Memory-PV/out/broken.out.%j
+#SBATCH --error=/home/users/0019/uk097201/PV/Shared-Memory-PV/out/broken.err.%j
 
 export OMP_NUM_THREADS=4
 #cd /path/to/broken
-./broken
+out/broken
