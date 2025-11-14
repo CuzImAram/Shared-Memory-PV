@@ -229,20 +229,15 @@ void task6() {
 
 // Task 7
 void task7() {
-#pragma omp parallel
+    #pragma omp parallel
     {
         int id = omp_get_thread_num();
-#pragma omp single
-        printf("task7 : thread ID: %d, expected: 0\n", id);
-    }
-}
 
-// Task 7 OLD
-void task7_old() {
-#pragma omp parallel
-    {
-        int id = omp_get_thread_num();
-#pragma omp single
+        // Führt dazu, dass der erste Thread der "frei" ist Ausgabe macht
+        // #pragma omp single 
+
+        // führt dazu, dass nur Thread 0 (master) die Ausgabe macht
+        #pragma omp master
         printf("task7 : thread ID: %d, expected: 0\n", id);
     }
 }
@@ -252,10 +247,14 @@ void task7_old() {
 // Task 8
 void task8() {
     float x = 0, y = 0;
+
+    // y bei if und x bei else gelocked -> Deadlock 
+    /*
     omp_lock_t lock_x, lock_y;
     omp_init_lock(&lock_x);
     omp_init_lock(&lock_y);
-#pragma omp parallel for shared(x, y)
+
+    #pragma omp parallel for shared(x, y)
     for (int i = 1; i <= SIZE; i++) {
         if (i < 0.3 * SIZE) {
             omp_set_lock(&lock_y);
@@ -273,6 +272,15 @@ void task8() {
             omp_unset_lock(&lock_x);
         }
     }
+    */
+
+    // reduction für x und y lock mit else überflüssig
+    #pragma omp parallel for reduction(+:x,y)
+    for (int i = 1; i <= SIZE; i++) {
+        x += i;
+        y += i;
+    }
+    
     printf("task8 : x=%.1f, y=%.1f, expected=%.1f\n", x, y, (SIZE + 1.0) * SIZE / 2.0);
 }
 
