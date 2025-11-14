@@ -190,7 +190,7 @@ void task5() {
 
 // Task 6
 void task6() {
-    float a[SIZE], b[SIZE], x, result, result_expected;
+    float a[SIZE], b[SIZE], result, result_expected;
     int i;
     a[0] = 0;
 
@@ -201,9 +201,19 @@ void task6() {
 
     result_expected = a[SIZE - 1] - a[0];
 
+    // shared Variable x führt zu Race Condition
+    /*
     #pragma omp parallel for
     for (i = 1; i < SIZE; i++) {
         x = sqrt(b[i]) - 1;
+        a[i] = x * x + 2 * x + 1;
+    }
+    */
+
+    // Lokale Variable x für jeden Thread  oder reduction(-:x) alternativ
+    #pragma omp parallel for
+    for (i = 1; i < SIZE; i++) {
+        float x = sqrt(b[i]) - 1;
         a[i] = x * x + 2 * x + 1;
     }
 
