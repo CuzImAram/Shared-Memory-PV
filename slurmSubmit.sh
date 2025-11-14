@@ -3,7 +3,7 @@
 #SBATCH --job-name="broken.c"
 
 ####### Partition #######
-#SBATCH --partition=pub23
+#SBATCH --partition=pub12
 
 ####### Ressources #######
 #SBATCH --time=0-00:05:00
@@ -19,4 +19,4 @@
 
 export OMP_NUM_THREADS=4
 #cd /path/to/broken
-out/broken
+/home/users/0019/uk097201/PV/Shared-Memory-PV/out/broken
