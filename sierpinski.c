@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <omp.h>
-#include "ifs.h"
 
 // default values
 #define IMG_SIZE_DEFAULT 1000
