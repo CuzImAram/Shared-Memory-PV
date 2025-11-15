@@ -59,30 +59,9 @@ int main(int argc, char** argv) {
   double* samples = calloc(num_samples * 2, sizeof(double));
 
   double t_start = omp_get_wtime();
-
-  #pragma omp parallel
-  {
-    #pragma omp for
-    for (int i = 0; i < num_samples; i++) {
-      samples[2*i] = (rand() % 10000) / 10000.0;
-    }
-
-    #pragma omp for
-    for (int i = 0; i < num_samples; i++) {
-      samples[2*i+1] = (rand() % 10000) / 10000.0;
-    }
-  }
-
-  #pragma omp parallel for
-  for (int i = 0; i < num_samples; i++) {
-    // "burn in" phase
-    for (int j = 0; j < 20; ++j) {
-      transform(&samples[i], trafo[rand() % 8]);
-    }
-  }
   
-  // initialize samples
-  /*
+  //initialize samples
+  #pragma omp parallel for
   for (int i = 0; i < num_samples; i++) {
     samples[2*i] = (rand() % 10000) / 10000.0;
     samples[2*i+1] = (rand() % 10000) / 10000.0;
@@ -92,8 +71,7 @@ int main(int argc, char** argv) {
       transform(&samples[i], trafo[rand() % 8]);
     }
   }
-  */
-  
+
   int iter = 0;
   double diff = max_diff + 1.0;
   double max_hits = 0;
@@ -114,8 +92,8 @@ int main(int argc, char** argv) {
       // Count for each pixel how often it is hit by a sample
       //  and the total number of pixels hits in each round
       if (0 <= u && u < size && 0 <= v && v < size) {
-	++pixels[u + v*size];
-	total_hits += 1.0;
+	      ++pixels[u + v*size];
+	      total_hits += 1.0;
       }
     }
 
@@ -127,25 +105,28 @@ int main(int argc, char** argv) {
     // we exit the loop
     for (int col_buf = 0; col_buf < size/10; col_buf++) {
       for (int row_buf = 0; row_buf < size/10; row_buf++) {
-	size_t idx_buf = row_buf + col_buf*size/10;
+	      size_t idx_buf = row_buf + col_buf*size/10;
 	
-	double old = buffer[idx_buf];
-	buffer[idx_buf] = 0;
+        double old = buffer[idx_buf];
+        buffer[idx_buf] = 0;
         
-	for (int col = 0; col < 10; col++) {
-	  for (int row = 0; row < 10; row++) {
-	    size_t idx = (10 * row_buf + row) + (10 * col_buf + col) * size;
-	    buffer[idx_buf] += pixels[idx];
-	    max_hits = max(pixels[idx], max_hits);
-	  }
-	}
+        for (int col = 0; col < 10; col++) {
+          for (int row = 0; row < 10; row++) {
+            size_t idx = (10 * row_buf + row) + (10 * col_buf + col) * size;
+            buffer[idx_buf] += pixels[idx];
+            max_hits = max(pixels[idx], max_hits);
+          }
+        }
+
         buffer[idx_buf] /= total_hits;
 
-	diff +=  abs(buffer[idx_buf] - old);
+	      diff +=  abs(buffer[idx_buf] - old);
       }
     }
     ++iter;
   }
+
+
   double t_end = omp_get_wtime();
   
   printf("Total time: %.3f seconds\n", t_end - t_start);

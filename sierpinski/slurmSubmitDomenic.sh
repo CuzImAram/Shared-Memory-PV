@@ -3,7 +3,7 @@
 #SBATCH --job-name="sierpinski.c"
 
 ####### Partition #######
-#SBATCH --partition=pub12
+#SBATCH --partition=pub23
 
 ####### Ressources #######
 #SBATCH --time=0-00:05:00
@@ -14,8 +14,9 @@
 #SBATCH --nodes=1
 
 ####### Output #######
-#SBATCH --output=/home/users/0019/uk097201/PV/Shared-Memory-PV/out/sierpinski.out.%j
-#SBATCH --error=/home/users/0019/uk097201/PV/Shared-Memory-PV/out/sierpinski.err.%j
+#SBATCH --output=/home/users/0017/uk095482/Shared-Memory-PV/sierpinski/out/sierpinski.out.%j
+#SBATCH --error=/home/users/0017/uk095482/Shared-Memory-PV/sierpinski/out/sierpinski.err.%j
 
 export OMP_NUM_THREADS=4
-/home/users/0019/uk097201/PV/Shared-Memory-PV/sierpinski/out/sierpinski
+#cd /path/to/broken
+out/sierpinski
