@@ -47,7 +47,6 @@ void export_pgm(int* buffer, size_t img_size, double max) {
 }
 
 
-
 int main(int argc, char** argv) {
 
   int size = argc > 1 ? atoi(argv[1]) : IMG_SIZE_DEFAULT;
@@ -60,8 +59,30 @@ int main(int argc, char** argv) {
   double* samples = calloc(num_samples * 2, sizeof(double));
 
   double t_start = omp_get_wtime();
+
+  #pragma omp parallel
+  {
+    #pragma omp for
+    for (int i = 0; i < num_samples; i++) {
+      samples[2*i] = (rand() % 10000) / 10000.0;
+    }
+
+    #pragma omp for
+    for (int i = 0; i < num_samples; i++) {
+      samples[2*i+1] = (rand() % 10000) / 10000.0;
+    }
+  }
+
+  #pragma omp parallel for
+  for (int i = 0; i < num_samples; i++) {
+    // "burn in" phase
+    for (int j = 0; j < 20; ++j) {
+      transform(&samples[i], trafo[rand() % 8]);
+    }
+  }
   
   // initialize samples
+  /*
   for (int i = 0; i < num_samples; i++) {
     samples[2*i] = (rand() % 10000) / 10000.0;
     samples[2*i+1] = (rand() % 10000) / 10000.0;
@@ -71,7 +92,7 @@ int main(int argc, char** argv) {
       transform(&samples[i], trafo[rand() % 8]);
     }
   }
-
+  */
   
   int iter = 0;
   double diff = max_diff + 1.0;
