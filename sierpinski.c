@@ -36,7 +36,7 @@ void transform(double* coords, double* coeff) {
 void export_pgm(int* buffer, size_t img_size, double max) {
   double scale = 256.0 / max;
     
-  FILE *fp = fopen("sierpinski.pgm", "w");
+  FILE *fp = fopen("out/sierpinski.pgm", "w");
   fprintf(fp, "P5\n%d %d\n255\n", img_size, img_size);
   
   for (int i = 0; i < img_size*img_size; i++) {
