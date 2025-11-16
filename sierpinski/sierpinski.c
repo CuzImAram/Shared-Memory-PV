@@ -72,8 +72,6 @@ int main(int argc, char** argv) {
     }
   }
 
-  // 0 1 2 3 4 5 6 7 8 9 
-
   int iter = 0;
   double diff = max_diff + 1.0;
   double max_hits = 0;
@@ -82,52 +80,54 @@ int main(int argc, char** argv) {
   while (diff > max_diff && iter < max_iter) {
     diff = 0.0;
 
-    // Computing the new samples for this round
-    //#pragma omp parallel for reduction(+:total_hits)
-    for (int i = 0; i < num_samples; i++) {
-      //Compute the next sample
-      transform(&samples[2*i], trafo[rand() % 8]);
+    #pragma omp parallel reduction(+:iter)
+    {
+      // Computing the new samples for this round
+      #pragma omp for reduction(+:total_hits) nowait
+      for (int i = 0; i < num_samples; i++) {
+        //Compute the next sample
+        transform(&samples[2*i], trafo[rand() % 8]);
 
-      // Scale sample to image coordinates
-      int u = (samples[2*i] * (double) size);
-      int v = (samples[2*i + 1] * (double) size);
+        // Scale sample to image coordinates
+        int u = (samples[2*i] * (double) size);
+        int v = (samples[2*i + 1] * (double) size);
 
-      // Count for each pixel how often it is hit by a sample
-      //  and the total number of pixels hits in each round
-      if (0 <= u && u < size && 0 <= v && v < size) {
-	      size_t idx = (size_t)u + (size_t)v * (size_t)size;
-	      //#pragma omp atomic
-	      ++pixels[idx];
-	      total_hits += 1.0;
+        // Count for each pixel how often it is hit by a sample
+        // and the total number of pixels hits in each round
+        if (0 <= u && u < size && 0 <= v && v < size) {
+          #pragma omp atomic
+          ++pixels[u + v*size];
+          total_hits += 1.0;
+        }
       }
-    }
 
-    // Abort criterion:
-    // In buffer we count the number of hits per 10*10 pixels.
-    // This buffer will be used to compute the difference between the image in
-    // the previous iteration and this iteration. Once the total difference
-    // between the falls below max_diff (or we had max_iter iterations),
-    // we exit the loop
-    #pragma omp parallel for collapse(2) reduction(+:diff) reduction(max:max_hits)
-    for (int col_buf = 0; col_buf < size/10; col_buf++) {
-      for (int row_buf = 0; row_buf < size/10; row_buf++) {
-	      size_t idx_buf = row_buf + col_buf*size/10;
-	      double old = buffer[idx_buf];
-	      buffer[idx_buf] = 0;
-        
-	      for (int col = 0; col < 10; col++) {
-	        for (int row = 0; row < 10; row++) {
-	          size_t idx = (10 * row_buf + row) + (10 * col_buf + col) * size;
-	          buffer[idx_buf] += pixels[idx];
-	          max_hits = max(pixels[idx], max_hits);
-	        }
-	      }
+      // Abort criterion:
+      // In buffer we count the number of hits per 10*10 pixels.
+      // This buffer will be used to compute the difference between the image in
+      // the previous iteration and this iteration. Once the total difference
+      // between the falls below max_diff (or we had max_iter iterations),
+      // we exit the loop
+      #pragma omp for collapse(2) reduction(+:diff) reduction(max:max_hits)
+      for (int col_buf = 0; col_buf < size/10; col_buf++) {
+        for (int row_buf = 0; row_buf < size/10; row_buf++) {
+          size_t idx_buf = row_buf + col_buf*size/10;
+          double old = buffer[idx_buf];
+          buffer[idx_buf] = 0;
+          
+          for (int col = 0; col < 10; col++) {
+            for (int row = 0; row < 10; row++) {
+              size_t idx = (10 * row_buf + row) + (10 * col_buf + col) * size;
+              buffer[idx_buf] += pixels[idx];
+              max_hits = max(pixels[idx], max_hits);
+            }
+          }
 
-        buffer[idx_buf] /= total_hits;
-	      diff +=  abs(buffer[idx_buf] - old);
+          buffer[idx_buf] /= total_hits;
+          diff +=  abs(buffer[idx_buf] - old);
+        }
       }
+      ++iter;
     }
-    ++iter;
   }
 
 
