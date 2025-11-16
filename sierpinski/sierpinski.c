@@ -72,6 +72,8 @@ int main(int argc, char** argv) {
     }
   }
 
+  // 0 1 2 3 4 5 6 7 8 9 
+
   int iter = 0;
   double diff = max_diff + 1.0;
   double max_hits = 0;
@@ -81,7 +83,7 @@ int main(int argc, char** argv) {
     diff = 0.0;
 
     // Computing the new samples for this round
-    #pragma omp parallel for reduction(+:total_hits)
+    //#pragma omp parallel for reduction(+:total_hits)
     for (int i = 0; i < num_samples; i++) {
       //Compute the next sample
       transform(&samples[2*i], trafo[rand() % 8]);
@@ -94,7 +96,7 @@ int main(int argc, char** argv) {
       //  and the total number of pixels hits in each round
       if (0 <= u && u < size && 0 <= v && v < size) {
 	      size_t idx = (size_t)u + (size_t)v * (size_t)size;
-	      #pragma omp atomic
+	      //#pragma omp atomic
 	      ++pixels[idx];
 	      total_hits += 1.0;
       }
@@ -106,31 +108,25 @@ int main(int argc, char** argv) {
     // the previous iteration and this iteration. Once the total difference
     // between the falls below max_diff (or we had max_iter iterations),
     // we exit the loop
-    int block_dim = size / 10;
-    double iteration_max_hits = 0.0;
-
-    #pragma omp parallel for collapse(2) reduction(+:diff) reduction(max:iteration_max_hits)
-    for (int col_buf = 0; col_buf < block_dim; col_buf++) {
-      for (int row_buf = 0; row_buf < block_dim; row_buf++) {
-	      size_t idx_buf = row_buf + col_buf*block_dim;
+    #pragma omp parallel for collapse(2) reduction(+:diff) reduction(max:max_hits)
+    for (int col_buf = 0; col_buf < size/10; col_buf++) {
+      for (int row_buf = 0; row_buf < size/10; row_buf++) {
+	      size_t idx_buf = row_buf + col_buf*size/10;
 	      double old = buffer[idx_buf];
-	      double block_hits = 0.0;
-
+	      buffer[idx_buf] = 0;
+        
 	      for (int col = 0; col < 10; col++) {
 	        for (int row = 0; row < 10; row++) {
 	          size_t idx = (10 * row_buf + row) + (10 * col_buf + col) * size;
-	          block_hits += pixels[idx];
-	          iteration_max_hits = max(iteration_max_hits, (double)pixels[idx]);
+	          buffer[idx_buf] += pixels[idx];
+	          max_hits = max(pixels[idx], max_hits);
 	        }
 	      }
 
-	      double normalized = block_hits / total_hits;
-	      buffer[idx_buf] = normalized;
-	      diff += abs(normalized - old);
+        buffer[idx_buf] /= total_hits;
+	      diff +=  abs(buffer[idx_buf] - old);
       }
     }
-
-    max_hits = max(max_hits, iteration_max_hits);
     ++iter;
   }
 
