@@ -63,7 +63,8 @@ int main(int argc, char** argv) {
   double t_start = omp_get_wtime();
   
   //initialize samples
-  #pragma omp parallel for
+  // schedule hat hier keinen Einfluss -> auto
+  #pragma omp parallel for schedule(auto) shared(samples,trafo)
   for (int i = 0; i < num_samples; i++) {
     samples[2*i] = (rand() % 10000) / 10000.0;
     samples[2*i+1] = (rand() % 10000) / 10000.0;
@@ -82,10 +83,10 @@ int main(int argc, char** argv) {
   while (diff > max_diff && iter < max_iter) {
     diff = 0.0;
 
-    #pragma omp parallel
-    {
       // Computing the new samples for this round
-      #pragma omp for reduction(+:total_hits) schedule(static) nowait
+
+      // Man könnte hier die Parallelisieung nutzen, jedoch durch atomic-overhead -> langsamer
+      //#pragma omp parallel for schedule(auto) shared(samples,trafo)
       for (int i = 0; i < num_samples; i++) {
         //Compute the next sample
         transform(&samples[2*i], trafo[rand() % 8]);
@@ -94,10 +95,10 @@ int main(int argc, char** argv) {
         int u = (samples[2*i] * (double) size);
         int v = (samples[2*i + 1] * (double) size);
 
-        // Count for each pixel how often it is hit by a sample
+        // Count for each pixel how often it is hit by a sample1
         // and the total number of pixels hits in each round
         if (0 <= u && u < size && 0 <= v && v < size) {
-          #pragma omp atomic
+          //#pragma omp atomic
           ++pixels[u + v*size];
           total_hits += 1.0;
         }
@@ -109,7 +110,7 @@ int main(int argc, char** argv) {
       // the previous iteration and this iteration. Once the total difference
       // between the falls below max_diff (or we had max_iter iterations),
       // we exit the loop
-      #pragma omp for collapse(2) reduction(+:diff) reduction(max:max_hits)
+      #pragma omp parallel for reduction(+:diff) reduction(max:max_hits) shared(buffer, pixels)
       for (int col_buf = 0; col_buf < size/10; col_buf++) {
         for (int row_buf = 0; row_buf < size/10; row_buf++) {
           size_t idx_buf = row_buf + col_buf*size/10;
@@ -128,7 +129,6 @@ int main(int argc, char** argv) {
           diff +=  abs(buffer[idx_buf] - old);
         }
       }
-    }
     ++iter;
   }
 
