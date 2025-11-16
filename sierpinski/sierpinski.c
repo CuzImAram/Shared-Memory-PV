@@ -5,7 +5,7 @@
 // default values
 #define IMG_SIZE_DEFAULT 5000
 #define NUM_SAMPLES_DEFAULT 10000
-#define MAX_ITER_DEFAULT 10000
+#define MAX_ITER_DEFAULT 100000
 #define MAX_DIFF_DEFAULT 0.0005
 
 #define max(X, Y)  ((X) > (Y) ? (X) : (Y))
@@ -25,11 +25,13 @@ double trafo[8][6] = {
 };
 
 void transform(double* coords, double* coeff) {
-  double x = coords[0];
-  double y = coords[1];
-
-  coords[0] = x * coeff[0] + y * coeff[1] + coeff[4];
-  coords[1] = x * coeff[2] + y * coeff[3] + coeff[5];
+  // für diese trafo ist das äquivalent und schneller:
+  // double x = coords[0];
+  // double y = coords[1];
+  // coords[0] = x * coeff[0] + y * coeff[1] + coeff[4];
+  // coords[1] = x * coeff[2] + y * coeff[3] + coeff[5];
+  coords[0] = coords[0] * thrd + coeff[4];
+  coords[1] = coords[1] * thrd + coeff[5];
 }
 
 // Method to write the output image
@@ -80,10 +82,10 @@ int main(int argc, char** argv) {
   while (diff > max_diff && iter < max_iter) {
     diff = 0.0;
 
-    #pragma omp parallel reduction(+:iter)
+    #pragma omp parallel
     {
       // Computing the new samples for this round
-      #pragma omp for reduction(+:total_hits) nowait
+      #pragma omp for reduction(+:total_hits) schedule(static) nowait
       for (int i = 0; i < num_samples; i++) {
         //Compute the next sample
         transform(&samples[2*i], trafo[rand() % 8]);
@@ -126,8 +128,8 @@ int main(int argc, char** argv) {
           diff +=  abs(buffer[idx_buf] - old);
         }
       }
-      ++iter;
     }
+    ++iter;
   }
 
 
