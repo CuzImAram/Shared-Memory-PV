@@ -59,9 +59,19 @@ unsigned long hash(unsigned long x)
     return x;
 }
 
-void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h, unsigned int work_factor)
+unsigned long apply_hash_times(unsigned long value, unsigned int times)
 {
-    // Sicherheitshalber: Wenn das Fenster größer als die Matrix ist, Abbruch if (h > rows)
+    for (unsigned int w = 0; w < times; ++w)
+    {
+        value = hash(value);
+    }
+    return value;
+}
+
+void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h, unsigned int work_factor, bool verbose)
+{
+    // Sicherheitshalber: Wenn das Fenster größer als die Matrix ist, Abbruch
+    if (h > rows)
     {
         fprintf(stderr, "Error: window height is greater than rows.\n");
         return;
@@ -79,13 +89,7 @@ void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h, unsi
         // 1. Initialisierung: Summe des ersten Fensters (Zeile 0 bis h-1)
         for (int k = 0; k < h; ++k)
         {
-            unsigned long value = A[k][j];
-            // Transformiere work_factor-mal
-            for (int w = 0; w < work_factor; ++w)
-            {
-                value = hash(value);
-            }
-            current_sum += value;
+            current_sum += apply_hash_times(A[k][j], work_factor);
         }
 
         unsigned long max_sum = current_sum;
@@ -98,17 +102,11 @@ void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h, unsi
             // Formel: Neue Summe = Alte Summe - (Element, das rausfällt) + (Element, das reinkommt)
             // Raus: A[i-1][j]
             unsigned long value_out = A[i - 1][j];
-            for (int w = 0; w < work_factor; ++w)
-            {
-                value_out = hash(value_out);
-            }
+            value_out = apply_hash_times(value_out, work_factor);
 
             // Rein: A[i+h-1][j]
             unsigned long value_in = A[i + h - 1][j];
-            for (int w = 0; w < work_factor; ++w)
-            {
-                value_in = hash(value_in);
-            }
+            value_in = apply_hash_times(value_in, work_factor);
 
             current_sum = current_sum - value_out + value_in;
 
@@ -123,11 +121,16 @@ void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h, unsi
     }
 
     // 3. Sequenzielle Ausgabe (damit die Reihenfolge stimmt: Spalte 0, 1, 2...)
-    for (int j = 0; j < columns; ++j)
+    if (verbose)
     {
-        printf("%lu%s", max_sums[j], (j + 1 == columns) ? "" : " ");
+        printf("Max sliding sums per column:\n");
+
+        for (int j = 0; j < columns; ++j)
+        {
+            printf("%lu%s", max_sums[j], (j + 1 == columns) ? "" : " ");
+        }
+        printf("\n\n");
     }
-    printf("\n");
 
     // Aufräumen
     delete[] max_sums;
@@ -155,6 +158,10 @@ int main(int argc, char **argv)
     unsigned int num_threads = atoi(argv[8]);
     unsigned int work_factor = atoi(argv[9]);
 
+    printf("Starting heatmap_analysis\n");
+    printf("Parameters: columns=%d, rows=%d, seed=%u, lower=%u, upper=%u, window_height=%u, verbose=%d, num_threads=%u, work_factor=%u\n",
+           columns, rows, seed, lower, upper, window_height, verbose, num_threads, work_factor);
+
     double start_time = omp_get_wtime();
 
     unsigned long **A = new unsigned long *[rows];
@@ -164,6 +171,19 @@ int main(int argc, char **argv)
     }
 
     init_array_parallel(A, rows, columns, seed, lower, upper);
+
+    if (verbose)
+    {
+        printf("A:\n");
+        for (int i = 0; i < rows; ++i)
+        {
+            for (int j = 0; j < columns; ++j)
+            {
+                printf("%lu%s", A[i][j], (j + 1 == columns) ? "" : ", ");
+            }
+            printf("\n");
+        }
+    }
 
     // init test against seq
     ///////////////////////////////////////////////////////////////////////////////
@@ -193,7 +213,7 @@ int main(int argc, char **argv)
     // Teil 1: Sliding Window Sums
     ///////////////////////////////////////////////////////////////////////////////
 
-    sliding_sums(A, rows, columns, window_height, work_factor);
+    sliding_sums(A, rows, columns, window_height, work_factor, verbose);
 
     return 0;
 }
