@@ -68,6 +68,75 @@ unsigned long apply_hash_times(unsigned long value, unsigned int times)
     return value;
 }
 
+void local_hotspots(unsigned long **A, int rows, int columns, unsigned int work_factor, bool verbose)
+{
+    int *hotspots_per_row = new int[rows]();
+    int total_hotspots = 0;
+
+#pragma omp parallel for reduction(+ : total_hotspots)
+    for (int i = 0; i < rows; ++i)
+    {
+        int row_hotspots = 0;
+        for (int j = 0; j < columns; ++j)
+        {
+            unsigned long center = apply_hash_times(A[i][j], work_factor);
+            bool is_hotspot = true;
+
+            // Check up neighbor
+            if (i > 0)
+            {
+                unsigned long up = apply_hash_times(A[i - 1][j], work_factor);
+                if (center <= up)
+                    is_hotspot = false;
+            }
+
+            // Check down neighbor
+            if (i < rows - 1 && is_hotspot)
+            {
+                unsigned long down = apply_hash_times(A[i + 1][j], work_factor);
+                if (center <= down)
+                    is_hotspot = false;
+            }
+
+            // Check left neighbor
+            if (j > 0 && is_hotspot)
+            {
+                unsigned long left = apply_hash_times(A[i][j - 1], work_factor);
+                if (center <= left)
+                    is_hotspot = false;
+            }
+
+            // Check right neighbor
+            if (j < columns - 1 && is_hotspot)
+            {
+                unsigned long right = apply_hash_times(A[i][j + 1], work_factor);
+                if (center <= right)
+                    is_hotspot = false;
+            }
+
+            if (is_hotspot)
+            {
+                row_hotspots++;
+            }
+        }
+        hotspots_per_row[i] = row_hotspots;
+        total_hotspots += row_hotspots;
+    }
+
+    // Output
+    if (verbose)
+    {
+        printf("Hotspots per row:\n");
+        for (int i = 0; i < rows; ++i)
+        {
+            printf("Row %d: %d hotspot(s)\n", i, hotspots_per_row[i]);
+        }
+    }
+    printf("Total hotspots found: %d\n", total_hotspots);
+
+    delete[] hotspots_per_row;
+}
+
 void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h, unsigned int work_factor, bool verbose)
 {
     // Sicherheitshalber: Wenn das Fenster größer als die Matrix ist, Abbruch
@@ -127,7 +196,7 @@ void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h, unsi
 
         for (int j = 0; j < columns; ++j)
         {
-            printf("%lu%s", max_sums[j], (j + 1 == columns) ? "" : " ");
+            printf("%lu%s", max_sums[j], (j + 1 == columns) ? ", " : " ");
         }
         printf("\n\n");
     }
@@ -159,7 +228,7 @@ int main(int argc, char **argv)
     unsigned int work_factor = atoi(argv[9]);
 
     printf("Starting heatmap_analysis\n");
-    printf("Parameters: columns=%d, rows=%d, seed=%u, lower=%u, upper=%u, window_height=%u, verbose=%d, num_threads=%u, work_factor=%u\n",
+    printf("Parameters: columns=%d, rows=%d, seed=%d, lower=%d, upper=%d, window_height=%d, verbose=%d, num_threads=%d, work_factor=%d\n",
            columns, rows, seed, lower, upper, window_height, verbose, num_threads, work_factor);
 
     double start_time = omp_get_wtime();
@@ -214,6 +283,24 @@ int main(int argc, char **argv)
     ///////////////////////////////////////////////////////////////////////////////
 
     sliding_sums(A, rows, columns, window_height, work_factor, verbose);
+
+    // Teil 2: Local Hotspots
+    ///////////////////////////////////////////////////////////////////////////////
+
+    local_hotspots(A, rows, columns, work_factor, verbose);
+
+    // Execution time
+    ///////////////////////////////////////////////////////////////////////////////
+
+    double end_time = omp_get_wtime();
+    printf("Execution took %.4fs\n", end_time - start_time);
+
+    // Cleanup
+    for (int i = 0; i < rows; ++i)
+    {
+        delete[] A[i];
+    }
+    delete[] A;
 
     return 0;
 }
