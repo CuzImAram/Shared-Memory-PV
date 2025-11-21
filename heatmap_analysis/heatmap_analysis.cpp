@@ -8,12 +8,25 @@ unsigned concatenate(unsigned x, unsigned y)
     while (y >= pow)
     {
         pow *= 10;
-        return x * pow + y;
+    }
+    return x * pow + y;
+}
+
+void init_array_seq(unsigned long **A, int rows, int columns, unsigned int seed, unsigned int lower, unsigned int upper)
+{
+    for (int i = 0; i < rows; ++i)
+    {
+        for (int j = 0; j < columns; ++j)
+        {
+            srand(seed * concatenate(i, j));
+            A[i][j] = rand() % (upper - lower) + lower;
+        }
     }
 }
 
-void initialize_array(unsigned long **A, int rows, int columns, unsigned int seed, unsigned int lower, unsigned int upper)
+void init_array_parallel(unsigned long **A, int rows, int columns, unsigned int seed, unsigned int lower, unsigned int upper)
 {
+    // #pragma omp tile sizes(4, 4)
     for (int i = 0; i < rows; ++i)
     {
         for (int j = 0; j < columns; ++j)
@@ -36,9 +49,13 @@ unsigned long hash(unsigned long x)
 
 int main(int argc, char **argv)
 {
-    if (argc < 9)
+    // init
+    ///////////////////////////////////////////////////////////////////////////////
+    if (argc != 10)
     {
-        fprintf(stderr, "Usage: %s <columns> <rows> <seed> <lower> <upper> <window_height> <verbose> <num_threads> <work_factor>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <columns> <rows> <seed> <lower> <upper>\
+            <window_height> <verbose> <num_threads> <work_factor>\n",
+                argv[0]);
         return 1;
     }
 
@@ -58,7 +75,22 @@ int main(int argc, char **argv)
         A[i] = new unsigned long[columns];
     }
 
-    initialize_array(A, rows, columns, seed, lower, upper);
+    for (int i = 0; i < rows; ++i)
+    {
+        for (int j = 0; j < columns; ++j)
+        {
+            A[i][j] = 0;
+        }
+    }
+
+    // unsigned long start_time = omp_get_wtime();
+    init_array_seq(A, rows, columns, seed, lower, upper);
+    // init_array_parallel(A, rows, columns, seed, lower, upper);
+    // unsigned long end_time = omp_get_wtime();
+
+    // printf("Initialization time: %lu seconds\n", end_time - start_time);
+
+    ///////////////////////////////////////////////////////////////////////////////
 
     for (int i = 0; i < rows; ++i)
     {
