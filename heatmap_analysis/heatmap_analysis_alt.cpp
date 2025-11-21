@@ -26,13 +26,32 @@ void init_array_seq(unsigned long **A, int rows, int columns, unsigned int seed,
 
 void init_array_parallel(unsigned long **A, int rows, int columns, unsigned int seed, unsigned int lower, unsigned int upper)
 {
-    // #pragma omp tile sizes(4, 4)
-    for (int i = 0; i < rows; ++i)
+    const int tile_size = 64; // Define the tile size for cache efficiency
+    #pragma omp parallel for collapse(2) schedule(dynamic)
+    for (int ii = 0; ii < rows; ii += tile_size)
     {
-        for (int j = 0; j < columns; ++j)
+        for (int jj = 0; jj < columns; jj += tile_size)
         {
-            srand(seed * concatenate(i, j));
-            A[i][j] = rand() % (upper - lower) + lower;
+            // --- START OF TILE ---
+            
+            // Determine the boundaries of the current tile
+            int i_end = (ii + tile_size < rows) ? ii + tile_size : rows;
+            int j_end = (jj + tile_size < columns) ? jj + tile_size : columns;
+
+            for (int i = ii; i < i_end; ++i)
+            {
+                for (int j = jj; j < j_end; ++j)
+                {
+                    // 2. Thread-safe Random Generation
+                    // We calculate the specific seed for this element
+                    unsigned int element_seed = seed * concatenate(i, j);
+                    
+                    // Use rand_r which takes a pointer to the local seed
+                    // This avoids global state contention
+                    A[i][j] = rand_r(&element_seed) % (upper - lower) + lower;
+                }
+            }
+            // --- END OF TILE ---
         }
     }
 }
@@ -75,31 +94,29 @@ int main(int argc, char **argv)
         A[i] = new unsigned long[columns];
     }
 
-    for (int i = 0; i < rows; ++i)
-    {
-        for (int j = 0; j < columns; ++j)
-        {
-            A[i][j] = 0;
-        }
-    }
-
-    // unsigned long start_time = omp_get_wtime();
+    float start_time = omp_get_wtime();
     init_array_seq(A, rows, columns, seed, lower, upper);
-    // init_array_parallel(A, rows, columns, seed, lower, upper);
-    // unsigned long end_time = omp_get_wtime();
+    float end_time = omp_get_wtime();
+    printf("Sequential initialization time: %f seconds\n", end_time - start_time);
 
-    // printf("Initialization time: %lu seconds\n", end_time - start_time);
+    for (int j = 0; j < columns; ++j)
+    {
+        printf("%lu%s", A[rows - 1][j], (j + 1 == columns) ? "" : " ");
+    }
+    printf("\n");
+
+    start_time = omp_get_wtime();
+    init_array_parallel(A, rows, columns, seed, lower, upper);
+    end_time = omp_get_wtime();
+    printf("Parallel initialization time: %f seconds\n", end_time - start_time);
 
     ///////////////////////////////////////////////////////////////////////////////
 
-    for (int i = 0; i < rows; ++i)
+    for (int j = 0; j < columns; ++j)
     {
-        for (int j = 0; j < columns; ++j)
-        {
-            printf("%lu%s", A[i][j], (j + 1 == columns) ? "" : " ");
-        }
-        printf("\n");
+        printf("%lu%s", A[rows - 1][j], (j + 1 == columns) ? "" : " ");
     }
+    printf("\n");
 
     return 0;
 }
