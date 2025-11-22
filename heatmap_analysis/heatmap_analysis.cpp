@@ -4,6 +4,9 @@
 #include <limits.h>
 #include <omp.h>
 
+// init
+///////////////////////////////////////////////////////////////////////////////
+
 unsigned concatenate(unsigned x, unsigned y)
 {
     unsigned pow = 10;
@@ -14,7 +17,8 @@ unsigned concatenate(unsigned x, unsigned y)
     return x * pow + y;
 }
 
-void init_array_seq(unsigned long **A, int rows, int columns, unsigned int seed, unsigned int lower, unsigned int upper)
+void init_array_seq(unsigned long **A, int rows, int columns, unsigned int seed,
+                    unsigned int lower, unsigned int upper)
 {
     for (int i = 0; i < rows; ++i)
     {
@@ -26,16 +30,19 @@ void init_array_seq(unsigned long **A, int rows, int columns, unsigned int seed,
     }
 }
 
-void init_array_parallel(unsigned long **A, int rows, int columns, unsigned int seed, unsigned int lower, unsigned int upper)
+void init_array_parallel(unsigned long **A, int rows, int columns,
+                         unsigned int seed, unsigned int lower,
+                         unsigned int upper)
 {
-#pragma omp parallel for
+#pragma omp parallel for schedule(static) collapse(2)
     for (int i = 0; i < rows; ++i)
     {
         for (int j = 0; j < columns; ++j)
         {
             unsigned int my_seed = seed * concatenate(i, j);
 
-            // Verwendung von reentrant Zufallszahlengeneratoren -> thread-sicher anders als rand
+            // Verwendung von reentrant Zufallszahlengeneratoren
+            // -> thread-sicher anders als rand
             struct random_data buf;
             char state_buf[128];
             memset(&buf, 0, sizeof(buf));
@@ -48,6 +55,9 @@ void init_array_parallel(unsigned long **A, int rows, int columns, unsigned int 
         }
     }
 }
+
+// hash
+///////////////////////////////////////////////////////////////////////////////
 
 unsigned long hash(unsigned long x)
 {
@@ -68,7 +78,23 @@ unsigned long apply_hash_times(unsigned long value, unsigned int times)
     return value;
 }
 
-void local_hotspots(unsigned long **A, int rows, int columns, unsigned int work_factor, bool verbose)
+void hash_array(unsigned long **A, int rows, int columns,
+                unsigned int work_factor)
+{
+#pragma omp parallel for collapse(2)
+    for (int i = 0; i < rows; ++i)
+    {
+        for (int j = 0; j < columns; ++j)
+        {
+            A[i][j] = apply_hash_times(A[i][j], work_factor);
+        }
+    }
+}
+
+// Teil 2: Local Hotspots
+///////////////////////////////////////////////////////////////////////////////
+
+void local_hotspots(unsigned long **A, int rows, int columns, bool verbose)
 {
     int *hotspots_per_row = new int[rows]();
     int total_hotspots = 0;
@@ -79,38 +105,34 @@ void local_hotspots(unsigned long **A, int rows, int columns, unsigned int work_
         int row_hotspots = 0;
         for (int j = 0; j < columns; ++j)
         {
-            unsigned long center = apply_hash_times(A[i][j], work_factor);
+            unsigned long center = A[i][j];
             bool is_hotspot = true;
 
-            // Check up neighbor
+            // Check oberen Nachbarn
             if (i > 0)
             {
-                unsigned long up = apply_hash_times(A[i - 1][j], work_factor);
-                if (center <= up)
+                if (center <= A[i - 1][j])
                     is_hotspot = false;
             }
 
-            // Check down neighbor
-            if (i < rows - 1 && is_hotspot)
+            // Check unteren Nachbarn
+            if (is_hotspot && i < rows - 1)
             {
-                unsigned long down = apply_hash_times(A[i + 1][j], work_factor);
-                if (center <= down)
+                if (center <= A[i + 1][j])
                     is_hotspot = false;
             }
 
-            // Check left neighbor
-            if (j > 0 && is_hotspot)
+            // Check linken Nachbarn
+            if (is_hotspot && j > 0)
             {
-                unsigned long left = apply_hash_times(A[i][j - 1], work_factor);
-                if (center <= left)
+                if (center <= A[i][j - 1])
                     is_hotspot = false;
             }
 
-            // Check right neighbor
-            if (j < columns - 1 && is_hotspot)
+            // Check rechten Nachbarn
+            if (is_hotspot && j < columns - 1)
             {
-                unsigned long right = apply_hash_times(A[i][j + 1], work_factor);
-                if (center <= right)
+                if (center <= A[i][j + 1])
                     is_hotspot = false;
             }
 
@@ -137,57 +159,64 @@ void local_hotspots(unsigned long **A, int rows, int columns, unsigned int work_
     delete[] hotspots_per_row;
 }
 
-void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h, unsigned int work_factor, bool verbose)
+// Teil 1: Sliding Window Sums
+///////////////////////////////////////////////////////////////////////////////
+
+void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h,
+                  bool verbose)
 {
     // Sicherheitshalber: Wenn das Fenster größer als die Matrix ist, Abbruch
-    if (h > rows)
+    if (h > (unsigned int)rows)
     {
         fprintf(stderr, "Error: window height is greater than rows.\n");
         return;
     }
 
-    // Array zum Speichern der Ergebnisse pro Spalte (damit die Ausgabe geordnet bleibt)
+    // Array zum Speichern der Ergebnisse pro Spalte
+    // (damit die Ausgabe geordnet bleibt)
     unsigned long *max_sums = new unsigned long[columns];
+    unsigned long *current_sums = new unsigned long[columns];
 
-// Wir parallelisieren über die SPALTEN (j), da diese unabhängig sind.
-#pragma omp parallel for
-    for (int j = 0; j < columns; ++j)
+#pragma omp parallel
     {
-        unsigned long current_sum = 0;
-
-        // 1. Initialisierung: Summe des ersten Fensters (Zeile 0 bis h-1)
-        for (int k = 0; k < h; ++k)
+// 1. Initialisierung: Summe des ersten Fensters (Zeile 0 bis h-1)
+#pragma omp for schedule(static)
+        for (int j = 0; j < columns; ++j)
         {
-            current_sum += apply_hash_times(A[k][j], work_factor);
+            current_sums[j] = 0;
+            for (unsigned int k = 0; k < h; ++k)
+            {
+                current_sums[j] += A[k][j];
+            }
+            max_sums[j] = current_sums[j];
         }
-
-        unsigned long max_sum = current_sum;
 
         // 2. Sliding Window: Durchlaufe den Rest der Spalte
         // i ist der Startindex des NÄCHSTEN Fensters.
         // Das Fenster geht von i bis i + h - 1
-        for (int i = 1; i <= rows - h; ++i)
+        for (unsigned int i = 1; i <= (unsigned int)rows - h; ++i)
         {
-            // Formel: Neue Summe = Alte Summe - (Element, das rausfällt) + (Element, das reinkommt)
+            // Formel: Neue Summe = Alte Summe -
+            // (Element, das rausfällt) + (Element, das reinkommt)
             // Raus: A[i-1][j]
-            unsigned long value_out = A[i - 1][j];
-            value_out = apply_hash_times(value_out, work_factor);
-
             // Rein: A[i+h-1][j]
-            unsigned long value_in = A[i + h - 1][j];
-            value_in = apply_hash_times(value_in, work_factor);
-
-            current_sum = current_sum - value_out + value_in;
-
-            if (current_sum > max_sum)
+#pragma omp for schedule(static)
+            for (int j = 0; j < columns; ++j)
             {
-                max_sum = current_sum;
+                unsigned long value_out = A[i - 1][j];
+                unsigned long value_in = A[i + h - 1][j];
+
+                current_sums[j] = current_sums[j] - value_out + value_in;
+
+                if (current_sums[j] > max_sums[j])
+                {
+                    max_sums[j] = current_sums[j];
+                }
             }
         }
-
-        // Speichere das Maximum für diese Spalte
-        max_sums[j] = max_sum;
     }
+
+    delete[] current_sums;
 
     // 3. Sequenzielle Ausgabe (damit die Reihenfolge stimmt: Spalte 0, 1, 2...)
     if (verbose)
@@ -228,15 +257,20 @@ int main(int argc, char **argv)
     unsigned int work_factor = atoi(argv[9]);
 
     printf("Starting heatmap_analysis\n");
-    printf("Parameters: columns=%d, rows=%d, seed=%d, lower=%d, upper=%d, window_height=%d, verbose=%d, num_threads=%d, work_factor=%d\n",
-           columns, rows, seed, lower, upper, window_height, verbose, num_threads, work_factor);
+    printf("Parameters: columns=%d, rows=%d, seed=%d, lower=%d, upper=%d, "
+           "window_height=%d, verbose=%d, num_threads=%d, work_factor=%d\n",
+           columns, rows, seed, lower, upper, window_height, verbose,
+           num_threads, work_factor);
 
     double start_time = omp_get_wtime();
 
+    // Einzelner Block of Memory für bessere Cache-Lokalität
+    // (Als normales 2D-Array)
+    unsigned long *A_storage = new unsigned long[rows * columns];
     unsigned long **A = new unsigned long *[rows];
     for (int i = 0; i < rows; ++i)
     {
-        A[i] = new unsigned long[columns];
+        A[i] = &A_storage[i * columns];
     }
 
     init_array_parallel(A, rows, columns, seed, lower, upper);
@@ -254,52 +288,25 @@ int main(int argc, char **argv)
         }
     }
 
-    // init test against seq
-    ///////////////////////////////////////////////////////////////////////////////
-
-    // double start_time = omp_get_wtime();
-    // init_array_seq(A, rows, columns, seed, lower, upper);
-    // double end_time = omp_get_wtime();
-    // printf("Sequential initialization time: %f seconds\n", end_time - start_time);
-
-    // for (int j = 0; j < columns; ++j)
-    // {
-    //     printf("%lu%s", A[rows - 1][j], (j + 1 == columns) ? "" : " ");
-    // }
-    // printf("\n");
-
-    // start_time = omp_get_wtime();
-    // init_array_parallel(A, rows, columns, seed, lower, upper);
-    // end_time = omp_get_wtime();
-    // printf("Parallel initialization time: %f seconds\n", end_time - start_time);
-
-    // for (int j = 0; j < columns; ++j)
-    // {
-    //     printf("%lu%s", A[rows - 1][j], (j + 1 == columns) ? "" : " ");
-    // }
-    // printf("\n");
+    // hash array
+    hash_array(A, rows, columns, work_factor);
 
     // Teil 1: Sliding Window Sums
-    ///////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
 
-    sliding_sums(A, rows, columns, window_height, work_factor, verbose);
+    sliding_sums(A, rows, columns, window_height, verbose);
 
     // Teil 2: Local Hotspots
-    ///////////////////////////////////////////////////////////////////////////////
-
-    local_hotspots(A, rows, columns, work_factor, verbose);
+    ///////////////////////////////////////////////////////////////////////////
+    local_hotspots(A, rows, columns, verbose);
 
     // Execution time
-    ///////////////////////////////////////////////////////////////////////////////
-
+    ///////////////////////////////////////////////////////////////////////////
     double end_time = omp_get_wtime();
     printf("Execution took %.4fs\n", end_time - start_time);
 
     // Cleanup
-    for (int i = 0; i < rows; ++i)
-    {
-        delete[] A[i];
-    }
+    delete[] A[0];
     delete[] A;
 
     return 0;
