@@ -21,7 +21,8 @@ void init_array(unsigned long **A, int rows, int columns,
                 unsigned int seed, unsigned int lower,
                 unsigned int upper)
 {
-#pragma omp parallel for schedule(static) collapse(2)
+#pragma omp parallel for schedule(static) \
+    shared(A, rows, columns, seed, lower, upper)
     for (int i = 0; i < rows; ++i)
     {
         for (int j = 0; j < columns; ++j)
@@ -68,7 +69,8 @@ unsigned long apply_hash_times(unsigned long value, unsigned int times)
 void hash_array(unsigned long **A, int rows, int columns,
                 unsigned int work_factor)
 {
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for collapse(2) schedule(static) \
+    shared(A, rows, columns, work_factor)
     for (int i = 0; i < rows; ++i)
     {
         for (int j = 0; j < columns; ++j)
@@ -86,7 +88,8 @@ void local_hotspots(unsigned long **A, int rows, int columns, bool verbose)
     int *hotspots_per_row = new int[rows]();
     int total_hotspots = 0;
 
-#pragma omp parallel for reduction(+ : total_hotspots)
+#pragma omp parallel for reduction(+ : total_hotspots) schedule(static) \
+    shared(A, rows, columns, hotspots_per_row)
     for (int i = 0; i < rows; ++i)
     {
         int row_hotspots = 0;
@@ -164,7 +167,7 @@ void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h,
     unsigned long *max_sums = new unsigned long[columns];
     unsigned long *current_sums = new unsigned long[columns];
 
-#pragma omp parallel
+#pragma omp parallel shared(A, rows, columns, h, current_sums, max_sums)
     {
 // 1. Initialisierung: Summe des ersten Fensters (Zeile 0 bis h-1)
 #pragma omp for schedule(static)
