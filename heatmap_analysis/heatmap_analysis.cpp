@@ -234,6 +234,8 @@ int main(int argc, char **argv)
     unsigned int num_threads = atoi(argv[8]);
     unsigned int work_factor = atoi(argv[9]);
 
+    omp_set_num_threads(num_threads);
+
     printf("Starting heatmap_analysis\n");
     printf("Parameters: columns=%d, rows=%d, seed=%d, lower=%d, upper=%d, "
            "window_height=%d, verbose=%d, num_threads=%d, work_factor=%d\n",

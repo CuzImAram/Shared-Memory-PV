@@ -17,6 +17,5 @@
 #SBATCH --output=/home/users/0017/uk095482/Shared-Memory-PV/heatmap_analysis/out/heatmap_analysis.out.%j
 #SBATCH --error=/home/users/0017/uk095482/Shared-Memory-PV/heatmap_analysis/out/heatmap_analysis.err.%j
 
-export OMP_NUM_THREADS=4
 #cd /path/to/broken
-out/heatmap_analysis
+out/heatmap_analysis 10000 10000 123 0 100 55 0 48 1000
