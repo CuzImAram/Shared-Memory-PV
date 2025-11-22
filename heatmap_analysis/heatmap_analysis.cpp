@@ -17,22 +17,9 @@ unsigned concatenate(unsigned x, unsigned y)
     return x * pow + y;
 }
 
-void init_array_seq(unsigned long **A, int rows, int columns, unsigned int seed,
-                    unsigned int lower, unsigned int upper)
-{
-    for (int i = 0; i < rows; ++i)
-    {
-        for (int j = 0; j < columns; ++j)
-        {
-            srand(seed * concatenate(i, j));
-            A[i][j] = rand() % (upper - lower) + lower;
-        }
-    }
-}
-
-void init_array_parallel(unsigned long **A, int rows, int columns,
-                         unsigned int seed, unsigned int lower,
-                         unsigned int upper)
+void init_array(unsigned long **A, int rows, int columns,
+                unsigned int seed, unsigned int lower,
+                unsigned int upper)
 {
 #pragma omp parallel for schedule(static) collapse(2)
     for (int i = 0; i < rows; ++i)
@@ -273,7 +260,7 @@ int main(int argc, char **argv)
         A[i] = &A_storage[i * columns];
     }
 
-    init_array_parallel(A, rows, columns, seed, lower, upper);
+    init_array(A, rows, columns, seed, lower, upper);
 
     if (verbose)
     {
