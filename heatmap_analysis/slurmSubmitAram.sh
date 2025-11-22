@@ -17,4 +17,4 @@
 #SBATCH --output=/home/users/0019/uk097201/PV/Shared-Memory-PV/heatmap_analysis/out/heatmap_analysis.out.%j
 #SBATCH --error=/home/users/0019/uk097201/PV/Shared-Memory-PV/heatmap_analysis/out/heatmap_analysis.err.%j
 
-/home/users/0019/uk097201/PV/Shared-Memory-PV/heatmap_analysis/out/heatmap_analysis 10000 10000 123 0 100 55 0 48 1000
+/home/users/0019/uk097201/PV/Shared-Memory-PV/heatmap_analysis/out/heatmap_analysis 10000 10000 123 0 100 500 0 48 1000
