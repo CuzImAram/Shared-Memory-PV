@@ -80,80 +80,11 @@ void hash_array(unsigned long **A, int rows, int columns,
     }
 }
 
-// Teil 2: Local Hotspots
+// Analysis (Sliding Windows + Local Hotspots)
 ///////////////////////////////////////////////////////////////////////////////
 
-void local_hotspots(unsigned long **A, int rows, int columns, bool verbose)
-{
-    int *hotspots_per_row = new int[rows]();
-    int total_hotspots = 0;
-
-#pragma omp parallel for reduction(+ : total_hotspots) schedule(static) \
-    shared(A, rows, columns, hotspots_per_row)
-    for (int i = 0; i < rows; ++i)
-    {
-        int row_hotspots = 0;
-        for (int j = 0; j < columns; ++j)
-        {
-            unsigned long center = A[i][j];
-            bool is_hotspot = true;
-
-            // Check oberen Nachbarn
-            if (i > 0)
-            {
-                if (center <= A[i - 1][j])
-                    is_hotspot = false;
-            }
-
-            // Check unteren Nachbarn
-            if (is_hotspot && i < rows - 1)
-            {
-                if (center <= A[i + 1][j])
-                    is_hotspot = false;
-            }
-
-            // Check linken Nachbarn
-            if (is_hotspot && j > 0)
-            {
-                if (center <= A[i][j - 1])
-                    is_hotspot = false;
-            }
-
-            // Check rechten Nachbarn
-            if (is_hotspot && j < columns - 1)
-            {
-                if (center <= A[i][j + 1])
-                    is_hotspot = false;
-            }
-
-            if (is_hotspot)
-            {
-                row_hotspots++;
-            }
-        }
-        hotspots_per_row[i] = row_hotspots;
-        total_hotspots += row_hotspots;
-    }
-
-    // Output
-    if (verbose)
-    {
-        printf("Hotspots per row:\n");
-        for (int i = 0; i < rows; ++i)
-        {
-            printf("Row %d: %d hotspot(s)\n", i, hotspots_per_row[i]);
-        }
-    }
-    printf("Total hotspots found: %d\n", total_hotspots);
-
-    delete[] hotspots_per_row;
-}
-
-// Teil 1: Sliding Window Sums
-///////////////////////////////////////////////////////////////////////////////
-
-void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h,
-                  bool verbose)
+void analyze_heatmap(unsigned long **A, int rows, int columns, unsigned int h,
+                     bool verbose)
 {
     // Sicherheitshalber: Wenn das Fenster größer als die Matrix ist, Abbruch
     if (h > (unsigned int)rows)
@@ -162,15 +93,19 @@ void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h,
         return;
     }
 
-    // Array zum Speichern der Ergebnisse pro Spalte
-    // (damit die Ausgabe geordnet bleibt)
     unsigned long *max_sums = new unsigned long[columns];
     unsigned long *current_sums = new unsigned long[columns];
+    int *hotspots_per_row = new int[rows]();
+    int total_hotspots = 0;
 
-#pragma omp parallel shared(A, rows, columns, h, current_sums, max_sums)
+#pragma omp parallel shared(A, rows, columns, h, current_sums, max_sums, \
+                                hotspots_per_row) reduction(+ : total_hotspots)
     {
+// Teil 1: Sliding Window Sums
+///////////////////////////////////////////////////////////////////////////////
+
 // 1. Initialisierung: Summe des ersten Fensters (Zeile 0 bis h-1)
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) nowait
         for (int j = 0; j < columns; ++j)
         {
             current_sums[j] = 0;
@@ -182,15 +117,9 @@ void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h,
         }
 
         // 2. Sliding Window: Durchlaufe den Rest der Spalte
-        // i ist der Startindex des NÄCHSTEN Fensters.
-        // Das Fenster geht von i bis i + h - 1
         for (unsigned int i = 1; i <= (unsigned int)rows - h; ++i)
         {
-            // Formel: Neue Summe = Alte Summe -
-            // (Element, das rausfällt) + (Element, das reinkommt)
-            // Raus: A[i-1][j]
-            // Rein: A[i+h-1][j]
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) nowait
             for (int j = 0; j < columns; ++j)
             {
                 unsigned long value_out = A[i - 1][j];
@@ -204,24 +133,83 @@ void sliding_sums(unsigned long **A, int rows, int columns, unsigned int h,
                 }
             }
         }
+
+// Teil 2: Local Hotspots
+///////////////////////////////////////////////////////////////////////////////
+#pragma omp for schedule(static) nowait
+        for (int i = 0; i < rows; ++i)
+        {
+            int row_hotspots = 0;
+            for (int j = 0; j < columns; ++j)
+            {
+                unsigned long center = A[i][j];
+                bool is_hotspot = true;
+
+                // Check oberen Nachbarn
+                if (i > 0)
+                {
+                    if (center <= A[i - 1][j])
+                        is_hotspot = false;
+                }
+
+                // Check unteren Nachbarn
+                if (is_hotspot && i < rows - 1)
+                {
+                    if (center <= A[i + 1][j])
+                        is_hotspot = false;
+                }
+
+                // Check linken Nachbarn
+                if (is_hotspot && j > 0)
+                {
+                    if (center <= A[i][j - 1])
+                        is_hotspot = false;
+                }
+
+                // Check rechten Nachbarn
+                if (is_hotspot && j < columns - 1)
+                {
+                    if (center <= A[i][j + 1])
+                        is_hotspot = false;
+                }
+
+                if (is_hotspot)
+                {
+                    row_hotspots++;
+                }
+            }
+            hotspots_per_row[i] = row_hotspots;
+            total_hotspots += row_hotspots;
+        }
     }
 
-    delete[] current_sums;
-
-    // 3. Sequenzielle Ausgabe (damit die Reihenfolge stimmt: Spalte 0, 1, 2...)
+    // Output Sliding Sums
     if (verbose)
     {
         printf("Max sliding sums per column:\n");
 
         for (int j = 0; j < columns; ++j)
         {
-            printf("%lu%s", max_sums[j], (j + 1 == columns) ? ", " : " ");
+            printf("%lu%s", max_sums[j], (j + 1 != columns) ? ", " : " ");
         }
         printf("\n\n");
     }
 
+    // Output Hotspots
+    if (verbose)
+    {
+        printf("Hotspots per row:\n");
+        for (int i = 0; i < rows; ++i)
+        {
+            printf("Row %d: %d hotspot(s)\n", i, hotspots_per_row[i]);
+        }
+    }
+    printf("Total hotspots found: %d\n", total_hotspots);
+
     // Aufräumen
     delete[] max_sums;
+    delete[] current_sums;
+    delete[] hotspots_per_row;
 }
 
 int main(int argc, char **argv)
@@ -281,14 +269,10 @@ int main(int argc, char **argv)
     // hash array
     hash_array(A, rows, columns, work_factor);
 
-    // Teil 1: Sliding Window Sums
+    // Analysis (Sliding Windows + Local Hotspots)
     ///////////////////////////////////////////////////////////////////////////
 
-    sliding_sums(A, rows, columns, window_height, verbose);
-
-    // Teil 2: Local Hotspots
-    ///////////////////////////////////////////////////////////////////////////
-    local_hotspots(A, rows, columns, verbose);
+    analyze_heatmap(A, rows, columns, window_height, verbose);
 
     // Execution time
     ///////////////////////////////////////////////////////////////////////////
