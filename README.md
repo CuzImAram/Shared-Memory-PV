@@ -1,3 +1,5 @@
+Alle Aufgaben sind in separaten Ordnern mit jeweiligem slurmSubmit.sh Datei zum ausführen im Batch System und out/ Ordner.
+
 Aufgabe a.)
 Path: cd broken/ // In diesen Path muss man um es auszuführen und zu compilen
 Compile: gcc -fopenmp -O0 -Wall -lm -o out/broken broken.c
@@ -18,7 +20,7 @@ sbatch slurmSubmit.sh
 
 Aufgabe c.)
 Path: cd heatmap_analysis/ // In diesen Path muss man um es auszuführen und zu compilen
-Compile: g++ -fopenmp -O3 -Wall -o out/heatpmap_analysis heatmap_analysis.cpp
+Compile: g++ -fopenmp -O3 -Wall -o out/heatmap_analysis heatmap_analysis.cpp
 Ausführen: 
 out/heatmap_analysis 3 4 42 0 10 2 1 1 1
 Ausführen Batch: 
