@@ -15,7 +15,7 @@
 
 ####### Output #######
 #SBATCH --output=/home/users/0019/uk097201/PV/Shared-Memory-PV/out/broken.out.%j
-#SBATCH --error=/home/users/0019/uk097201/PV/Shared-Memory-PV/out/broken.err.%j
+#SBATCH --error=/home/users/0019/uk097201/PV/Shared-Memory-PV/heatmap_analysis/out/error/broken.err.%j
 
 export OMP_NUM_THREADS=4
 #cd /path/to/broken

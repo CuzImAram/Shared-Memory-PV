@@ -15,7 +15,7 @@
 
 ####### Output #######
 #SBATCH --output=/home/users/0017/uk095482/Shared-Memory-PV/sierpinski/out/sierpinski.out.%j
-#SBATCH --error=/home/users/0017/uk095482/Shared-Memory-PV/sierpinski/out/sierpinski.err.%j
+#SBATCH --error=/home/users/0017/uk095482/Shared-Memory-PV/sierpinski/out/error/sierpinski.err.%j
 
 export OMP_NUM_THREADS=4
 #cd /path/to/broken

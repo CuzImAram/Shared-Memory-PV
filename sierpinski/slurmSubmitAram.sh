@@ -15,7 +15,7 @@
 
 ####### Output #######
 #SBATCH --output=/home/users/0019/uk097201/PV/Shared-Memory-PV/sierpinski/out/sierpinski.out.%j
-#SBATCH --error=/home/users/0019/uk097201/PV/Shared-Memory-PV/sierpinski/out/sierpinski.err.%j
+#SBATCH --error=/home/users/0019/uk097201/PV/Shared-Memory-PV/heatmap_analysis/out/error/sierpinski.err.%j
 
 export OMP_NUM_THREADS=8
 /home/users/0019/uk097201/PV/Shared-Memory-PV/sierpinski/out/sierpinski
