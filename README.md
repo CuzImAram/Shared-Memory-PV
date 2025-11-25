@@ -1,6 +1,6 @@
 Aufgabe a.)
 Path: cd broken/ // In diesen Path muss man um es auszuführen und zu compilen
-Compile: gcc -fopenmp -O3 -Wall -o out/broken broken.c
+Compile: gcc -fopenmp -O0 -Wall -lm -o out/broken broken.c
 Ausführen: 
 export OMP_NUM_THREADS=8 (Oder andere Thread anzahl)
 out/broken
