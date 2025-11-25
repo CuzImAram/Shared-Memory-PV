@@ -64,7 +64,7 @@ int main(int argc, char **argv)
   double t_start = omp_get_wtime();
 
 // initialize samples
-//  schedule hat hier keinen Einfluss -> auto
+// schedule hat hier keinen Einfluss -> auto
 #pragma omp parallel for schedule(auto) shared(samples, trafo)
   for (int i = 0; i < num_samples; i++)
   {
