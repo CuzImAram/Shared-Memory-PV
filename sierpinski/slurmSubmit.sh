@@ -1,6 +1,6 @@
 #!/bin/bash
 ####### Mail Notify / Job Name / Comment #######
-#SBATCH --job-name="broken.c"
+#SBATCH --job-name="sierpinski.c"
 
 ####### Partition #######
 #SBATCH --partition=pub23
@@ -14,9 +14,9 @@
 #SBATCH --nodes=1
 
 ####### Output #######
-#SBATCH --output=/home/users/0017/uk095482/Shared-Memory-PV/out/broken.out.%j
-#SBATCH --error=/home/users/0017/uk095482/Shared-Memory-PV/out/error/broken.err.%j
+#SBATCH --output=out/sierpinski.out.%j
+#SBATCH --error=out/error/sierpinski.err.%j
 
-export OMP_NUM_THREADS=4
-#cd /path/to/broken
-out/broken
+#path/to/binary
+export OMP_NUM_THREADS=8
+out/sierpinski

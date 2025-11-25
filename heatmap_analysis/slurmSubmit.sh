@@ -14,8 +14,8 @@
 #SBATCH --nodes=1
 
 ####### Output #######
-#SBATCH --output=/home/users/0017/uk095482/Shared-Memory-PV/heatmap_analysis/out/heatmap_analysis.out.%j
-#SBATCH --error=/home/users/0017/uk095482/Shared-Memory-PV/heatmap_analysis/out/error/heatmap_analysis.err.%j
-
-#cd /path/to/broken
-out/heatmap_analysis 10000 10000 123 0 100 55 0 48 1000
+#SBATCH --output=out/heatmap_analysis.out.%j
+#SBATCH --error=out/error/heatmap_analysis.err.%j
+    
+#path/to/binary
+out/heatmap_analysis 10000 10000 123 0 100 5000 0 8 100
