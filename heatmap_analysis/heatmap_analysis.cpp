@@ -17,6 +17,15 @@ unsigned concatenate(unsigned x, unsigned y)
     return x * pow + y;
 }
 
+/*
+for (int i = 0; i < rows; ++i) {
+    for (int j = 0; j < columns; ++j) {
+        srand(seed * concatenate(i, j));
+        A[i][j] = rand() % (upper- lower) + lower;
+    }
+}
+*/
+
 void init_array(unsigned long **A, int rows, int columns,
                 unsigned int seed, unsigned int lower,
                 unsigned int upper)
@@ -31,14 +40,26 @@ void init_array(unsigned long **A, int rows, int columns,
 
             // Verwendung von reentrant Zufallszahlengeneratoren
             // -> thread-sicher anders als rand
-            struct random_data buf;
-            char state_buf[128];
+
+            struct random_data buf; // Lokaler Status-Speicher für den RNG
+            char state_buf[128];    // Puffer für den internen State des RNG
+
+            // Initialisierung des Structs mit 0 (wichtig für initstate_r)
             memset(&buf, 0, sizeof(buf));
+
+            // Initialisiert den Status-Puffer mit dem berechneten Seed.
+            // Damit hat jeder Durchlauf/Thread seinen komplett eigenen RNG-Kontext.
             initstate_r(my_seed, state_buf, 128, &buf);
+
+            // Setzt den Seed für diesen spezifischen Status-Puffer.
             srandom_r(my_seed, &buf);
+
+            // Generiert die Zufallszahl und speichert sie in 'r'.
+            // Benutzt dabei nur den lokalen 'buf', keine globalen Variablen -> Thread-safe.
             int32_t r;
             random_r(&buf, &r);
 
+            // gleicher Bereich wie rand() % (upper - lower) + lower
             A[i][j] = r % (upper - lower) + lower;
         }
     }
