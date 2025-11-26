@@ -121,7 +121,9 @@ int main(int argc, char **argv)
     {
       for (int row_buf = 0; row_buf < size / 10; row_buf++)
       {
+        // idx_buf ist safe vor race condition da private Variable in jedem Thread durch size_t
         size_t idx_buf = row_buf + col_buf * size / 10;
+        // gleiches wie für old
         double old = buffer[idx_buf];
         buffer[idx_buf] = 0;
 
@@ -129,13 +131,16 @@ int main(int argc, char **argv)
         {
           for (int row = 0; row < 10; row++)
           {
+            // idx safe vor race condition da private Variable in jedem Thread durch size_t
             size_t idx = (10 * row_buf + row) + (10 * col_buf + col) * size;
             buffer[idx_buf] += pixels[idx];
+            // race condition auf max_hits hier durch reduction behoben
             max_hits = max(pixels[idx], max_hits);
           }
         }
 
         buffer[idx_buf] /= total_hits;
+        // race condition auf diff hier durch reduction behoben
         diff += abs(buffer[idx_buf] - old);
       }
     }
