@@ -236,7 +236,7 @@ for (i = 1; i < SIZE; i++) {
 */
 
 // Lokale Variable x für jeden Thread oder reduction(-:x) alternativ
-// oder barriere auf x
+// oder barriere auf x oder einfach private
 #pragma omp parallel for
     for (i = 1; i < SIZE; i++)
     {
