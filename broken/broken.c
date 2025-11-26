@@ -83,6 +83,7 @@ void task2()
         {
             // Dieser Teil wird in der Reihenfolge der Schleifenindizes ausgeführt
             // Man könnte auch einfach eine explizite Barriere machen
+            // (atomic, critical, barrier)
 #pragma omp ordered
             printf("%d ", values[i]);
         }
@@ -99,6 +100,7 @@ void task3()
     int evens = 0;
 
 // evens wird von mehreren Threads gleichzeitig geschrieben
+// read/write dependancy
 /*
 #pragma omp parallel for
 for (int i = 0; i < SIZE; i++) {
@@ -130,6 +132,8 @@ void task4()
     int max_val = INT_MIN;
 
 // lokale max_val wird durch lastprivate nicht korrekt initialisiert
+// lastprivate nimmt den Wert aus dem letzten Iterationsdurchlauf (Thread der diesen hat)
+// nicht den globalen Maximalwert
 /*
 #pragma omp parallel for lastprivate(max_val)
 for (int i = 0; i < SIZE; i++) {
@@ -210,6 +214,7 @@ void task5()
 void task6()
 {
     float a[SIZE], b[SIZE], result, result_expected;
+    // float x;
     int i;
     a[0] = 0;
 
@@ -221,7 +226,7 @@ void task6()
 
     result_expected = a[SIZE - 1] - a[0];
 
-// shared Variable x führt zu Race Condition
+// shared Variable x führt zu Race Condition -> read/write dependancy
 /*
 #pragma omp parallel for
 for (i = 1; i < SIZE; i++) {
@@ -230,7 +235,8 @@ for (i = 1; i < SIZE; i++) {
 }
 */
 
-// Lokale Variable x für jeden Thread  oder reduction(-:x) alternativ
+// Lokale Variable x für jeden Thread oder reduction(-:x) alternativ
+// oder barriere auf x
 #pragma omp parallel for
     for (i = 1; i < SIZE; i++)
     {
