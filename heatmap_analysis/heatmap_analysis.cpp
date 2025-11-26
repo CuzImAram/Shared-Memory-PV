@@ -138,6 +138,8 @@ void analyze_heatmap(unsigned long **A, int rows, int columns, unsigned int h,
         }
 
         // 2. Sliding Window: Durchlaufe den Rest der Spalte
+        // neue_summe = alte_summe - rausfallender_wert + neuer_wert
+        // erste for: Nicht parallelisierbar, da Loop-Carried Dependency bei current_sums.
         for (unsigned int i = 1; i <= (unsigned int)rows - h; ++i)
         {
 #pragma omp for schedule(static) nowait
@@ -267,6 +269,7 @@ int main(int argc, char **argv)
 
     // Einzelner Block of Memory für bessere Cache-Lokalität
     // (Als normales 2D-Array)
+    // Auf Heap, da Stack sonst zu klein für große Matrizen
     unsigned long *A_storage = new unsigned long[rows * columns];
     unsigned long **A = new unsigned long *[rows];
     for (int i = 0; i < rows; ++i)
